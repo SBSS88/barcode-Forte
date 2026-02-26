@@ -64,7 +64,7 @@ svg{width:100%;max-width:600px}
 
 </div>
 
-<div id="fullscreen" class="fullscreen hidden">
+<div id="fullscreen" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; flex-direction:column; align-items:center; justify-content:center; z-index:1000;">
   <svg id="fullscreenBarcode"></svg>
   <button onclick="closeFullscreen()">Назад</button>
 </div>
@@ -73,4 +73,5 @@ svg{width:100%;max-width:600px}
 <script src="app.js"></script>
 
 </body>
+
 </html>
