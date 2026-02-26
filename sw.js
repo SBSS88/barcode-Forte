@@ -1,4 +1,4 @@
-const CACHE_NAME = "barcode-forte-v1";
+const CACHE_NAME = "barcode-forte-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -42,3 +42,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
