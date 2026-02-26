@@ -40,26 +40,26 @@ svg{width:100%;max-width:600px}
     <button id="changeSectorBtn">Сменить сектор</button>
   </div>
 
-  <div class="card">
-    <button id="modeCells">Ячейки</button>
-    <button id="modeEmployees">Сотрудники</button>
-  </div>
-
-  <div class="card">
-   <input id="searchInput" placeholder="Поиск..." autocomplete="off">
-    <div id="results"></div>
-  </div>
-
-  <div class="card">
-    <div><b>Последние:</b></div>
-    <div id="recent"></div>
-  </div>
-
+  <!-- 1️⃣ ШТРИХКОД -->
   <div class="card hidden" id="barcodeCard">
     <div id="barcodeName"></div>
     <svg id="barcode"></svg>
     <button id="fullscreenBtn">Увеличить</button>
     <button id="favoriteBtn">⭐ В избранное</button>
+  </div>
+
+  <!-- 2️⃣ ПОИСК -->
+  <div class="card">
+    <button id="modeCells">Ячейки</button>
+    <button id="modeEmployees">Сотрудники</button>
+    <input id="searchInput" placeholder="Поиск..." autocomplete="off">
+    <div id="results"></div>
+  </div>
+
+  <!-- 3️⃣ ПОСЛЕДНИЕ -->
+  <div class="card">
+    <div><b>Последние:</b></div>
+    <div id="recent"></div>
   </div>
 
 </div>
@@ -75,4 +75,5 @@ svg{width:100%;max-width:600px}
 </body>
 
 </html>
+
 
