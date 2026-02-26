@@ -221,7 +221,7 @@ function showBarcode(item){
 
 /* ---------- FULLSCREEN ---------- */
 function openFullscreen(code){
-  fullscreen.classList.remove("hidden");
+  fullscreen.style.display="flex";
   JsBarcode(fullscreenBarcode,code,{
     format:"CODE128",
     width:4,
@@ -231,7 +231,7 @@ function openFullscreen(code){
 }
 
 window.closeFullscreen = function(){
-  fullscreen.classList.add("hidden");
+  fullscreen.style.display="none";
 }
 
 /* ---------- ПОСЛЕДНИЕ ---------- */
@@ -259,3 +259,4 @@ function renderRecent(){
 init();
 
 });
+
