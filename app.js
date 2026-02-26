@@ -1,265 +1,203 @@
-// app.js — авто-загрузка location.csv (locationname -> locationbarcode) + офлайн через localStorage + генерация Code128
+document.addEventListener("DOMContentLoaded", () => {
 
-const LS_KEY = "loc2barcode_v1";
-const LS_META = "loc2barcode_meta_v1"; // для даты обновления
+const LS_DATA = "warehouse_data_v2";
+const LS_SECTOR = "warehouse_sector_v2";
+const LS_RECENT = "warehouse_recent_v2";
 
-const elLoc = document.getElementById("loc");
-const elBtn = document.getElementById("btn");
-const elClear = document.getElementById("clear");
-const elRefresh = document.getElementById("refresh");
-const elStatus = document.getElementById("status");
-const elCode = document.getElementById("code");
-const elErr = document.getElementById("err");
-const elSvg = document.getElementById("barcode");
+let data = { sectors:{}, employees:[] };
+let currentSector = null;
+let currentMode = "cells";
 
-// -------------------- storage --------------------
+const sectorScreen = document.getElementById("sectorScreen");
+const mainScreen = document.getElementById("mainScreen");
+const sectorButtons = document.getElementById("sectorButtons");
+const sectorTitle = document.getElementById("sectorTitle");
+const changeSectorBtn = document.getElementById("changeSectorBtn");
+const modeCells = document.getElementById("modeCells");
+const modeEmployees = document.getElementById("modeEmployees");
+const searchInput = document.getElementById("searchInput");
+const results = document.getElementById("results");
+const barcodeCard = document.getElementById("barcodeCard");
+const barcodeName = document.getElementById("barcodeName");
+const barcode = document.getElementById("barcode");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
+const fullscreen = document.getElementById("fullscreen");
+const fullscreenBarcode = document.getElementById("fullscreenBarcode");
+const recentDiv = document.getElementById("recent");
 
-function loadDict() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-  } catch {
-    return {};
-  }
+function normalize(str){
+  return (str||"").toUpperCase().trim();
 }
 
-function saveDict(dict) {
-  localStorage.setItem(LS_KEY, JSON.stringify(dict));
-}
+async function loadCSV(){
+  const resp = await fetch("location.csv",{cache:"no-store"});
+  const text = await resp.text();
+  const rows = text.split("\n");
 
-function saveMeta(meta) {
-  localStorage.setItem(LS_META, JSON.stringify(meta || {}));
-}
+  const header = rows[0].toLowerCase();
+  const headers = header.split(",");
 
-function loadMeta() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_META) || "{}");
-  } catch {
-    return {};
-  }
-}
+  const idxName = headers.indexOf("locationname");
+  const idxBarcode = headers.indexOf("locationbarcode");
+  const idxRoute = headers.indexOf("routezone_id");
 
-// -------------------- helpers --------------------
+  data = { sectors:{}, employees:[] };
 
-function normalizeKey(str) {
-  return (str || "")
-    .replace(/\u00A0/g, " ")
-    .trim()
-    .toUpperCase();
-}
+  for(let i=1;i<rows.length;i++){
+    const cols = rows[i].split(",");
+    if(cols.length < 3) continue;
 
-function showStatus(msg, ok = true) {
-  elStatus.textContent = msg;
-  elStatus.className = "muted " + (ok ? "ok" : "bad");
-}
+    const name = cols[idxName]?.replace(/"/g,"");
+    const barcodeVal = cols[idxBarcode]?.replace(/"/g,"");
+    const route = cols[idxRoute];
 
-function clearSvg(svgEl) {
-  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-}
+    if(!name || !barcodeVal) continue;
 
-function nowIso() {
-  try { return new Date().toISOString(); } catch { return ""; }
-}
-
-// -------------------- barcode render --------------------
-
-function renderBarcode(value) {
-  elErr.textContent = "";
-  elErr.className = "muted";
-  elCode.textContent = value || "";
-
-  clearSvg(elSvg);
-
-  if (!value) return;
-
-  try {
-    JsBarcode(elSvg, value, {
-      format: "CODE128",
-      displayValue: true,
-      width: 3,
-      height: 100,
-      margin: 20,
-      fontSize: 16
-    });
-  } catch (e) {
-    elErr.textContent = "Ошибка генерации штрихкода: " + (e?.message || e);
-    elErr.className = "muted bad";
-  }
-}
-
-// -------------------- CSV parsing --------------------
-// CSV в твоём формате: много колонок, в т.ч. "locationname","locationbarcode",...
-// Разделитель: запятая. Поддержка кавычек и экранирования "".
-
-function parseCSV(text) {
-  const src = (text || "").replace(/\r/g, "");
-
-  function parseRows(s) {
-    const rows = [];
-    let row = [];
-    let field = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < s.length; i++) {
-      const c = s[i];
-
-      if (c === '"') {
-        if (inQuotes && s[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-        continue;
-      }
-
-      if (c === "," && !inQuotes) {
-        row.push(field);
-        field = "";
-        continue;
-      }
-
-      if (c === "\n" && !inQuotes) {
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = "";
-        continue;
-      }
-
-      field += c;
+    if(route == "2"){
+      data.employees.push({name, barcode: barcodeVal});
+    } else {
+      const sector = name[0];
+      if(!data.sectors[sector]) data.sectors[sector]=[];
+      data.sectors[sector].push({name, barcode: barcodeVal});
     }
-
-    if (field.length > 0 || row.length > 0) {
-      row.push(field);
-      rows.push(row);
-    }
-
-    return rows;
   }
 
-  const rows = parseRows(src).filter(r => r.some(x => (x || "").trim() !== ""));
-  if (rows.length === 0) return { dict: {}, count: 0, error: "Пустой CSV" };
-
-  const header = rows[0].map(x => (x || "").trim().toLowerCase());
-  const idxLocName = header.indexOf("locationname");
-  const idxBarcode = header.indexOf("locationbarcode");
-
-  if (idxLocName === -1 || idxBarcode === -1) {
-    return { dict: {}, count: 0, error: "Не найдены колонки locationname/locationbarcode" };
-  }
-
-  const dict = {};
-  let count = 0;
-
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    const locationRaw = (r[idxLocName] || "").trim();
-    const barcodeRaw = (r[idxBarcode] || "").trim();
-
-    if (!locationRaw || !barcodeRaw) continue;
-
-    const location = normalizeKey(locationRaw); // ключи храним нормализованными
-    dict[location] = barcodeRaw;
-    count++;
-  }
-
-  return { dict, count, error: "" };
+  localStorage.setItem(LS_DATA, JSON.stringify(data));
 }
 
-// -------------------- auto-load CSV --------------------
-
-async function autoLoadCSV({ silent = false } = {}) {
-  try {
-    const resp = await fetch("location.csv", { cache: "no-store" });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-
-    const text = await resp.text();
-    const res = parseCSV(text);
-
-    if (res.error || res.count === 0) {
-      if (!silent) showStatus("CSV загружен, но не распознан (нет locationname/locationbarcode).", false);
-      return false;
-    }
-
-    saveDict(res.dict);
-    saveMeta({ updated_at: nowIso(), count: res.count });
-
-    if (!silent) showStatus(`Справочник обновлён автоматически: ${res.count} записей.`, true);
-    return true;
-  } catch (e) {
-    const cnt = Object.keys(loadDict()).length;
-    const meta = loadMeta();
-    const when = meta.updated_at ? ` (последнее обновление: ${meta.updated_at})` : "";
-
-    if (cnt > 0) {
-      if (!silent) showStatus(`Сеть недоступна. Работаю офлайн: ${cnt} записей${when}.`, true);
-      return true;
-    }
-
-    if (!silent) showStatus("Не удалось загрузить справочник (и локально он пуст).", false);
-    return false;
-  }
-}
-
-// -------------------- find --------------------
-
-function findAndShow() {
-  const dict = loadDict();
-  const key = normalizeKey(elLoc.value);
-
-  if (!key) {
-    showStatus("Введите ячейку.", false);
-    renderBarcode("");
-    return;
-  }
-
-  const code = dict[key];
-
-  if (!code) {
-    showStatus(`Не найдено: ${key}`, false);
-    renderBarcode("");
-    return;
-  }
-
-  showStatus(`Найдено: ${key} → ${code}`, true);
-  renderBarcode(code);
-}
-
-// -------------------- UI events --------------------
-
-elBtn.addEventListener("click", findAndShow);
-
-elLoc.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") findAndShow();
-});
-
-elClear.addEventListener("click", () => {
-  localStorage.removeItem(LS_KEY);
-  localStorage.removeItem(LS_META);
-  showStatus("Справочник очищен.", true);
-  renderBarcode("");
-});
-
-elRefresh.addEventListener("click", async () => {
-  await autoLoadCSV({ silent: false });
-});
-
-// -------------------- init --------------------
-
-(async function init() {
-  // service worker (офлайн-кэш самого приложения)
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
-
-  // при запуске: сначала пробуем подтянуть свежий CSV, если сети нет — используем локальный
-  await autoLoadCSV({ silent: false });
-
-  // если справочник уже есть — пользователь может сразу искать
-  const cnt = Object.keys(loadDict()).length;
-  if (cnt > 0) {
-    // ничего
+function init(){
+  const saved = localStorage.getItem(LS_DATA);
+  if(saved){
+    data = JSON.parse(saved);
+    start();
   } else {
-    renderBarcode("");
+    loadCSV().then(start);
   }
-})();
+}
+
+function start(){
+  const savedSector = localStorage.getItem(LS_SECTOR);
+  if(savedSector){
+    currentSector = savedSector;
+    showMain();
+  } else {
+    showSectorSelect();
+  }
+}
+
+function showSectorSelect(){
+  sectorButtons.innerHTML="";
+  Object.keys(data.sectors).sort().forEach(sec=>{
+    const btn=document.createElement("button");
+    btn.textContent=sec;
+    btn.onclick=()=>{
+      currentSector=sec;
+      localStorage.setItem(LS_SECTOR,sec);
+      showMain();
+    };
+    sectorButtons.appendChild(btn);
+  });
+}
+
+function showMain(){
+  sectorScreen.classList.add("hidden");
+  mainScreen.classList.remove("hidden");
+  sectorTitle.textContent="Сектор "+currentSector;
+  renderRecent();
+}
+
+if(changeSectorBtn){
+  changeSectorBtn.onclick=()=>{
+    localStorage.removeItem(LS_SECTOR);
+    location.reload();
+  };
+}
+
+if(modeCells){
+  modeCells.onclick=()=>{currentMode="cells";searchInput.value="";results.innerHTML="";};
+}
+
+if(modeEmployees){
+  modeEmployees.onclick=()=>{currentMode="employees";searchInput.value="";results.innerHTML="";};
+}
+
+if(searchInput){
+searchInput.oninput=()=>{
+  const query=normalize(searchInput.value);
+  results.innerHTML="";
+  if(query.length<1) return;
+
+  let list=[];
+  if(currentMode==="cells"){
+    const sectorList=data.sectors[currentSector]||[];
+    list=sectorList.filter(x=>normalize(x.name).includes(query)).slice(0,20);
+  } else {
+    list=data.employees.filter(x=>normalize(x.name).includes(query)).slice(0,20);
+  }
+
+  list.forEach(item=>{
+    const div=document.createElement("div");
+    div.className="result";
+    div.textContent=item.name;
+    div.onclick=()=>showBarcode(item);
+    results.appendChild(div);
+  });
+};
+}
+
+function showBarcode(item){
+  barcodeCard.classList.remove("hidden");
+  barcodeName.textContent=item.name;
+
+  JsBarcode(barcode,item.barcode,{
+    format:"CODE128",
+    width:3,
+    height:100,
+    displayValue:true
+  });
+
+  addRecent(item);
+
+  if(fullscreenBtn){
+    fullscreenBtn.onclick=()=>openFullscreen(item.barcode);
+  }
+}
+
+function openFullscreen(code){
+  fullscreen.classList.remove("hidden");
+  JsBarcode(fullscreenBarcode,code,{
+    format:"CODE128",
+    width:4,
+    height:180,
+    displayValue:true
+  });
+}
+
+window.closeFullscreen = function(){
+  fullscreen.classList.add("hidden");
+}
+
+function addRecent(item){
+  let arr=JSON.parse(localStorage.getItem(LS_RECENT)||"[]");
+  arr=arr.filter(x=>x.name!==item.name);
+  arr.unshift(item);
+  arr=arr.slice(0,10);
+  localStorage.setItem(LS_RECENT,JSON.stringify(arr));
+  renderRecent();
+}
+
+function renderRecent(){
+  recentDiv.innerHTML="";
+  const arr=JSON.parse(localStorage.getItem(LS_RECENT)||"[]");
+  arr.forEach(item=>{
+    const div=document.createElement("div");
+    div.className="result";
+    div.textContent=item.name;
+    div.onclick=()=>showBarcode(item);
+    recentDiv.appendChild(div);
+  });
+}
+
+init();
+
+});
