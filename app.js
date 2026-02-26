@@ -1,62 +1,88 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-const LS_DATA = "warehouse_data_v4";
-const LS_SECTOR = "warehouse_sector_v4";
-const LS_RECENT = "warehouse_recent_v4";
+const LS_DATA = "warehouse_data_v5";
+const LS_SECTOR = "warehouse_sector_v5";
+const LS_RECENT = "warehouse_recent_v5";
+const LS_FAV = "warehouse_fav_v5";
 
 let data = { sectors:{}, employees:[] };
 let currentSector = null;
 let currentMode = "cells";
+let currentItem = null;
 
 const sectorScreen = document.getElementById("sectorScreen");
 const mainScreen = document.getElementById("mainScreen");
 const sectorButtons = document.getElementById("sectorButtons");
 const sectorTitle = document.getElementById("sectorTitle");
 const changeSectorBtn = document.getElementById("changeSectorBtn");
+
 const modeCells = document.getElementById("modeCells");
 const modeEmployees = document.getElementById("modeEmployees");
+
 const searchInput = document.getElementById("searchInput");
 const results = document.getElementById("results");
+
 const barcodeCard = document.getElementById("barcodeCard");
 const barcodeName = document.getElementById("barcodeName");
 const barcode = document.getElementById("barcode");
+
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 const fullscreen = document.getElementById("fullscreen");
 const fullscreenBarcode = document.getElementById("fullscreenBarcode");
+
+const favoriteBtn = document.getElementById("favoriteBtn");
+const favoritesDiv = document.getElementById("favorites");
+
 const recentDiv = document.getElementById("recent");
 
 function normalize(str){
   return (str || "").toUpperCase().trim();
 }
 
-/* ---------- CSV PARSER ---------- */
+/* ---------- CSV PARSER (с кавычками) ---------- */
 function parseCSV(text){
   const rows = [];
   let row = [];
   let value = "";
   let inQuotes = false;
 
-  for(let i=0;i<text.length;i++){
-    const char = text[i];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
 
-    if(char === '"'){
-      inQuotes = !inQuotes;
+    if (c === '"') {
+      // "" внутри кавычек = экранированная "
+      if (inQuotes && text[i + 1] === '"') {
+        value += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
     }
-    else if(char === ',' && !inQuotes){
+
+    if (c === ',' && !inQuotes) {
       row.push(value);
       value = "";
+      continue;
     }
-    else if((char === '\n' || char === '\r') && !inQuotes){
-      if(value !== "" || row.length){
+
+    if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (value !== "" || row.length) {
         row.push(value);
         rows.push(row);
         row = [];
         value = "";
       }
+      continue;
     }
-    else{
-      value += char;
-    }
+
+    value += c;
+  }
+
+  // последняя строка без перевода строки
+  if (value !== "" || row.length) {
+    row.push(value);
+    rows.push(row);
   }
 
   return rows;
@@ -68,7 +94,7 @@ async function loadCSV(){
   const text = await resp.text();
   const rows = parseCSV(text);
 
-  const headers = rows[0].map(h=>h.toLowerCase());
+  const headers = rows[0].map(h => (h || "").toLowerCase());
 
   const idxName = headers.indexOf("locationname");
   const idxBarcode = headers.indexOf("locationbarcode");
@@ -95,6 +121,58 @@ async function loadCSV(){
   }
 
   localStorage.setItem(LS_DATA, JSON.stringify(data));
+}
+
+/* ---------- FAVORITES ---------- */
+function getFav(){
+  try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]"); }
+  catch { return []; }
+}
+function setFav(arr){
+  localStorage.setItem(LS_FAV, JSON.stringify(arr));
+}
+function isFav(item){
+  const arr = getFav();
+  return arr.some(x => x.name === item.name);
+}
+function toggleFav(item){
+  let arr = getFav();
+  if (arr.some(x => x.name === item.name)) {
+    arr = arr.filter(x => x.name !== item.name);
+  } else {
+    arr.push({ name: item.name, barcode: item.barcode });
+  }
+  setFav(arr);
+  renderFavorites();
+  updateFavoriteButton();
+}
+
+function updateFavoriteButton(){
+  if (!favoriteBtn || !currentItem) return;
+  favoriteBtn.textContent = isFav(currentItem) ? "⭐ В избранном" : "⭐ В избранное";
+}
+
+function renderFavorites(){
+  if (!favoritesDiv) return;
+  favoritesDiv.innerHTML = "";
+
+  const arr = getFav();
+  if (arr.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "small";
+    empty.textContent = "Пока пусто";
+    favoritesDiv.appendChild(empty);
+    return;
+  }
+
+  // сортировка по имени для удобства
+  arr.slice().sort((a,b)=> a.name.localeCompare(b.name, "ru")).forEach(item=>{
+    const div=document.createElement("div");
+    div.className="result";
+    div.textContent=item.name;
+    div.onclick=()=>showBarcode(item);
+    favoritesDiv.appendChild(div);
+  });
 }
 
 /* ---------- INIT ---------- */
@@ -137,6 +215,7 @@ function showMain(){
   sectorScreen.classList.add("hidden");
   mainScreen.classList.remove("hidden");
   sectorTitle.textContent = "Сектор " + currentSector;
+  renderFavorites();
   renderRecent();
 }
 
@@ -197,6 +276,8 @@ searchInput.oninput = ()=>{
 
 /* ---------- SHOW BARCODE ---------- */
 function showBarcode(item){
+  currentItem = item;
+
   barcodeCard.classList.remove("hidden");
   barcodeName.textContent=item.name;
 
@@ -213,6 +294,12 @@ function showBarcode(item){
     fullscreenBtn.onclick=()=>openFullscreen(item.barcode);
   }
 
+  if (favoriteBtn) {
+    updateFavoriteButton();
+    favoriteBtn.onclick = () => toggleFav(item);
+  }
+
+  // ШК сверху — на всякий случай оставляем плавную прокрутку
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -235,7 +322,7 @@ window.closeFullscreen = function(){
 function addRecent(item){
   let arr = JSON.parse(localStorage.getItem(LS_RECENT)||"[]");
   arr = arr.filter(x=>x.name!==item.name);
-  arr.unshift(item);
+  arr.unshift({ name: item.name, barcode: item.barcode });
   arr = arr.slice(0,10);
   localStorage.setItem(LS_RECENT,JSON.stringify(arr));
   renderRecent();
