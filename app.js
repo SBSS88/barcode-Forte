@@ -220,7 +220,6 @@ function showBarcode(item){
 
   // 🔥 прокрутка вверх к штрихкоду
   window.scrollTo({ top: 0, behavior: "smooth" });
-  }
 }
 
 /* ---------- FULLSCREEN ---------- */
@@ -263,5 +262,6 @@ function renderRecent(){
 init();
 
 });
+
 
 
