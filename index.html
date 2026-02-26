@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Складской терминал</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:,">
+<style>
+body{font-family:system-ui;margin:16px;max-width:800px}
+h2{margin:0 0 10px 0}
+button{padding:8px 12px;font-size:16px}
+input{padding:10px;font-size:16px;width:100%}
+.card{border:1px solid #ddd;border-radius:10px;padding:12px;margin-top:12px}
+.hidden{display:none}
+.result{padding:8px;border-bottom:1px solid #eee;cursor:pointer}
+.result:hover{background:#f3f3f3}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.small{font-size:13px;color:#666}
+svg{width:100%;max-width:600px}
+.fullscreen{
+ position:fixed;top:0;left:0;right:0;bottom:0;
+ background:#fff;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;
+ z-index:1000;
+}
+</style>
+</head>
+<body>
+
+<div id="sectorScreen">
+  <h2>Выберите сектор</h2>
+  <div id="sectorButtons"></div>
+</div>
+
+<div id="mainScreen" class="hidden">
+
+  <div class="topbar">
+    <h2 id="sectorTitle"></h2>
+    <button id="changeSectorBtn">Сменить сектор</button>
+  </div>
+
+  <div class="card">
+    <button id="modeCells">Ячейки</button>
+    <button id="modeEmployees">Сотрудники</button>
+  </div>
+
+  <div class="card">
+    <input id="searchInput" placeholder="Поиск...">
+    <div id="results"></div>
+  </div>
+
+  <div class="card">
+    <div><b>Последние:</b></div>
+    <div id="recent"></div>
+  </div>
+
+  <div class="card hidden" id="barcodeCard">
+    <div id="barcodeName"></div>
+    <svg id="barcode"></svg>
+    <button id="fullscreenBtn">Увеличить</button>
+    <button id="favoriteBtn">⭐ В избранное</button>
+  </div>
+
+</div>
+
+<div id="fullscreen" class="fullscreen hidden">
+  <svg id="fullscreenBarcode"></svg>
+  <button onclick="closeFullscreen()">Назад</button>
+</div>
+
+<script src="JsBarcode.all.min.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
