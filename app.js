@@ -217,6 +217,10 @@ function showBarcode(item){
   if(fullscreenBtn){
     fullscreenBtn.onclick=()=>openFullscreen(item.barcode);
   }
+
+  // 🔥 прокрутка вверх к штрихкоду
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }
 
 /* ---------- FULLSCREEN ---------- */
@@ -259,4 +263,5 @@ function renderRecent(){
 init();
 
 });
+
 
