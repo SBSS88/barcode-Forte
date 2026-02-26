@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-const LS_DATA = "warehouse_data_v3";
-const LS_SECTOR = "warehouse_sector_v3";
-const LS_RECENT = "warehouse_recent_v3";
+const LS_DATA = "warehouse_data_v4";
+const LS_SECTOR = "warehouse_sector_v4";
+const LS_RECENT = "warehouse_recent_v4";
 
 let data = { sectors:{}, employees:[] };
 let currentSector = null;
@@ -26,10 +26,10 @@ const fullscreenBarcode = document.getElementById("fullscreenBarcode");
 const recentDiv = document.getElementById("recent");
 
 function normalize(str){
-  return (str||"").toUpperCase().trim();
+  return (str || "").toUpperCase().trim();
 }
 
-/* ---------- НАДЁЖНЫЙ CSV ПАРСЕР ---------- */
+/* ---------- CSV PARSER ---------- */
 function parseCSV(text){
   const rows = [];
   let row = [];
@@ -40,12 +40,7 @@ function parseCSV(text){
     const char = text[i];
 
     if(char === '"'){
-      if(inQuotes && text[i+1] === '"'){
-        value += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      inQuotes = !inQuotes;
     }
     else if(char === ',' && !inQuotes){
       row.push(value);
@@ -67,7 +62,7 @@ function parseCSV(text){
   return rows;
 }
 
-/* ---------- ЗАГРУЗКА CSV ---------- */
+/* ---------- LOAD CSV ---------- */
 async function loadCSV(){
   const resp = await fetch("location.csv",{cache:"no-store"});
   const text = await resp.text();
@@ -90,7 +85,7 @@ async function loadCSV(){
 
     if(!name || !barcodeVal) continue;
 
-    if(route == "2"){
+    if(route === "2"){
       data.employees.push({name, barcode: barcodeVal});
     } else {
       const sector = name[0];
@@ -102,7 +97,7 @@ async function loadCSV(){
   localStorage.setItem(LS_DATA, JSON.stringify(data));
 }
 
-/* ---------- ИНИЦИАЛИЗАЦИЯ ---------- */
+/* ---------- INIT ---------- */
 function init(){
   const saved = localStorage.getItem(LS_DATA);
   if(saved){
@@ -123,7 +118,7 @@ function start(){
   }
 }
 
-/* ---------- ВЫБОР СЕКТОРА ---------- */
+/* ---------- SECTOR ---------- */
 function showSectorSelect(){
   sectorButtons.innerHTML="";
   Object.keys(data.sectors).sort().forEach(sec=>{
@@ -131,7 +126,7 @@ function showSectorSelect(){
     btn.textContent = sec;
     btn.onclick = ()=>{
       currentSector = sec;
-      localStorage.setItem(LS_SECTOR,sec);
+      localStorage.setItem(LS_SECTOR, sec);
       showMain();
     };
     sectorButtons.appendChild(btn);
@@ -145,7 +140,7 @@ function showMain(){
   renderRecent();
 }
 
-/* ---------- КНОПКИ ---------- */
+/* ---------- BUTTONS ---------- */
 if(changeSectorBtn){
   changeSectorBtn.onclick = ()=>{
     localStorage.removeItem(LS_SECTOR);
@@ -169,7 +164,7 @@ if(modeEmployees){
   };
 }
 
-/* ---------- ПОИСК ---------- */
+/* ---------- SEARCH ---------- */
 if(searchInput){
 searchInput.oninput = ()=>{
   const query = normalize(searchInput.value);
@@ -200,7 +195,7 @@ searchInput.oninput = ()=>{
 };
 }
 
-/* ---------- ПОКАЗ ШК ---------- */
+/* ---------- SHOW BARCODE ---------- */
 function showBarcode(item){
   barcodeCard.classList.remove("hidden");
   barcodeName.textContent=item.name;
@@ -218,7 +213,6 @@ function showBarcode(item){
     fullscreenBtn.onclick=()=>openFullscreen(item.barcode);
   }
 
-  // 🔥 прокрутка вверх к штрихкоду
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -235,9 +229,9 @@ function openFullscreen(code){
 
 window.closeFullscreen = function(){
   fullscreen.style.display="none";
-}
+};
 
-/* ---------- ПОСЛЕДНИЕ ---------- */
+/* ---------- RECENT ---------- */
 function addRecent(item){
   let arr = JSON.parse(localStorage.getItem(LS_RECENT)||"[]");
   arr = arr.filter(x=>x.name!==item.name);
@@ -262,6 +256,3 @@ function renderRecent(){
 init();
 
 });
-
-
-
