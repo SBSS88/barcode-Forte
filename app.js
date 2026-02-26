@@ -1,13 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v1";
-  const LS_RECENT = "warehouse_recent_v1";
-  const LS_FAV = "warehouse_fav_v1";
+
+  const LS_SECTOR = "warehouse_sector_v2";
+  const LS_RECENT = "warehouse_recent_v2";
+  const LS_FAV = "warehouse_fav_v2";
 
   let data = { sectors: {}, employees: [] };
   let currentSector = null;
   let currentMode = "cells";
   let currentItem = null;
 
+  // ---- DOM ----
   const sectorScreen = document.getElementById("sectorScreen");
   const mainScreen = document.getElementById("mainScreen");
   const sectorButtons = document.getElementById("sectorButtons");
@@ -16,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const modeCells = document.getElementById("modeCells");
   const modeEmployees = document.getElementById("modeEmployees");
+  const modeFavorites = document.getElementById("modeFavorites");
 
   const searchInput = document.getElementById("searchInput");
   const results = document.getElementById("results");
@@ -29,6 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const fullscreenBarcode = document.getElementById("fullscreenBarcode");
 
   const favoriteBtn = document.getElementById("favoriteBtn");
+
+  const favoritesPanel = document.getElementById("favoritesPanel");
   const favoritesDiv = document.getElementById("favorites");
 
   const recentDiv = document.getElementById("recent");
@@ -37,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return (str || "").toUpperCase().trim();
   }
 
-  // CSV парсер с кавычками ("" -> ")
+  // ---- CSV parser (quotes-aware, handles "" escaping) ----
   function parseCSV(text) {
     const rows = [];
     let row = [];
@@ -85,9 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadCSV() {
-    // Важно: НЕ cache:"no-store", иначе усложняем офлайн.
-    // Пусть SW решает кэширование.
-    const resp = await fetch("location.csv");
+    const resp = await fetch("location.csv"); // SW cache can serve offline
     const text = await resp.text();
     const rows = parseCSV(text);
 
@@ -101,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i];
+
       const name = cols[idxName];
       const barcodeVal = cols[idxBarcode];
       const route = cols[idxRoute];
@@ -119,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     data = { sectors, employees };
   }
 
-  // -------- избранные --------
+  // ---- Favorites ----
   function getFav() {
     try { return JSON.parse(localStorage.getItem(LS_FAV) || "[]"); }
     catch { return []; }
@@ -134,28 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!favoriteBtn || !currentItem) return;
     favoriteBtn.textContent = isFav(currentItem) ? "⭐ В избранном" : "⭐ В избранное";
   }
-  function renderFavorites() {
-    if (!favoritesDiv) return;
-    favoritesDiv.innerHTML = "";
-    const arr = getFav();
-
-    if (arr.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "Пока пусто";
-      favoritesDiv.appendChild(empty);
-      return;
-    }
-
-    arr.slice().sort((a, b) => a.name.localeCompare(b.name, "ru"))
-      .forEach(item => {
-        const div = document.createElement("div");
-        div.className = "result";
-        div.textContent = item.name;
-        div.onclick = () => showBarcode(item);
-        favoritesDiv.appendChild(div);
-      });
-  }
   function toggleFav(item) {
     let arr = getFav();
     if (arr.some(x => x.name === item.name)) {
@@ -167,8 +149,31 @@ document.addEventListener("DOMContentLoaded", () => {
     renderFavorites();
     updateFavoriteButton();
   }
+  function renderFavorites() {
+    if (!favoritesDiv) return;
+    favoritesDiv.innerHTML = "";
 
-  // -------- последние --------
+    const arr = getFav();
+    if (arr.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "small";
+      empty.textContent = "Пока пусто";
+      favoritesDiv.appendChild(empty);
+      return;
+    }
+
+    arr.slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+      .forEach(item => {
+        const div = document.createElement("div");
+        div.className = "result";
+        div.textContent = item.name;
+        div.onclick = () => showBarcode(item);
+        favoritesDiv.appendChild(div);
+      });
+  }
+
+  // ---- Recent ----
   function addRecent(item) {
     let arr = [];
     try { arr = JSON.parse(localStorage.getItem(LS_RECENT) || "[]"); } catch {}
@@ -179,7 +184,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renderRecent();
   }
   function renderRecent() {
+    if (!recentDiv) return;
     recentDiv.innerHTML = "";
+
     let arr = [];
     try { arr = JSON.parse(localStorage.getItem(LS_RECENT) || "[]"); } catch {}
     arr.forEach(item => {
@@ -191,7 +198,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // -------- UI --------
+  // ---- Mode switching ----
+  function setMode(mode) {
+    currentMode = mode;
+
+    if (results) results.innerHTML = "";
+
+    // show/hide favorites panel
+    if (favoritesPanel) favoritesPanel.classList.add("hidden");
+
+    if (mode === "favorites") {
+      if (searchInput) searchInput.value = "";
+      if (favoritesPanel) favoritesPanel.classList.remove("hidden");
+      renderFavorites();
+      if (searchInput) searchInput.blur();
+    } else {
+      if (searchInput) searchInput.focus();
+    }
+  }
+
+  // ---- UI ----
   function showSectorSelect() {
     sectorButtons.innerHTML = "";
     Object.keys(data.sectors).sort().forEach(sec => {
@@ -210,15 +236,18 @@ document.addEventListener("DOMContentLoaded", () => {
     sectorScreen.classList.add("hidden");
     mainScreen.classList.remove("hidden");
     sectorTitle.textContent = "Сектор " + currentSector;
+
     renderFavorites();
     renderRecent();
+
+    setMode("cells");
   }
 
   function showBarcode(item) {
     currentItem = item;
 
-    barcodeCard.classList.remove("hidden");
-    barcodeName.textContent = item.name;
+    if (barcodeCard) barcodeCard.classList.remove("hidden");
+    if (barcodeName) barcodeName.textContent = item.name;
 
     JsBarcode(barcode, item.barcode, {
       format: "CODE128",
@@ -236,11 +265,12 @@ document.addEventListener("DOMContentLoaded", () => {
       favoriteBtn.onclick = () => toggleFav(item);
     }
 
-    // ШК сверху
+    // ШК всегда сверху
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function openFullscreen(code) {
+    if (!fullscreen) return;
     fullscreen.style.display = "flex";
     JsBarcode(fullscreenBarcode, code, {
       format: "CODE128",
@@ -251,10 +281,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.closeFullscreen = function () {
+    if (!fullscreen) return;
     fullscreen.style.display = "none";
   };
 
-  // -------- handlers --------
+  // ---- Handlers ----
   if (changeSectorBtn) {
     changeSectorBtn.onclick = () => {
       localStorage.removeItem(LS_SECTOR);
@@ -262,20 +293,23 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  if (modeCells) modeCells.onclick = () => { currentMode = "cells"; searchInput.value = ""; results.innerHTML = ""; };
-  if (modeEmployees) modeEmployees.onclick = () => { currentMode = "employees"; searchInput.value = ""; results.innerHTML = ""; };
+  if (modeCells) modeCells.onclick = () => setMode("cells");
+  if (modeEmployees) modeEmployees.onclick = () => setMode("employees");
+  if (modeFavorites) modeFavorites.onclick = () => setMode("favorites");
 
   if (searchInput) {
     searchInput.oninput = () => {
+      if (currentMode === "favorites") return;
+
       const query = normalize(searchInput.value);
-      results.innerHTML = "";
+      if (results) results.innerHTML = "";
       if (query.length < 1) return;
 
       let list = [];
       if (currentMode === "cells") {
         const sectorList = data.sectors[currentSector] || [];
         list = sectorList.filter(x => normalize(x.name).includes(query)).slice(0, 20);
-      } else {
+      } else if (currentMode === "employees") {
         list = data.employees.filter(x => normalize(x.name).includes(query)).slice(0, 20);
       }
 
@@ -289,9 +323,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // -------- start --------
+  // ---- Start ----
   (async function init() {
-    await loadCSV(); // всегда грузим CSV (он будет браться из SW cache офлайн)
+    await loadCSV();
+
     const savedSector = localStorage.getItem(LS_SECTOR);
     if (savedSector) {
       currentSector = savedSector;
