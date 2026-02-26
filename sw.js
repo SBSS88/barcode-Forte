@@ -1,4 +1,4 @@
-const CACHE_NAME = "barcode_pwa_v3";
+const CACHE_NAME = "barcode_pwa_v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,3 +27,4 @@ self.addEventListener("fetch", (event) => {
   );
 
 });
+
