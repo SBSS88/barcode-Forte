@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v2";
-  const LS_RECENT = "warehouse_recent_v2";
-  const LS_FAV = "warehouse_fav_v2";
+  const LS_SECTOR = "warehouse_sector_v3";
+  const LS_RECENT = "warehouse_recent_v3";
+  const LS_FAV = "warehouse_fav_v3";
 
   let data = { sectors: {}, employees: [] };
   let currentSector = null;
@@ -80,34 +80,62 @@ document.addEventListener("DOMContentLoaded", () => {
     return rows;
   }
 
+  function detectGroup(name) {
+    const n = normalize(name);
+
+    if (n.includes("СЕКТОР")) return "Сектор";
+    if (n.includes("БУФЕР")) return "Буфер";
+    if (n.includes("ТРАНЗИТ")) return "Транзит";
+    if (n.includes("ДОК")) return "Док";
+
+    return null;
+  }
+
   async function loadCSV() {
     const resp = await fetch("location.csv");
+
+    if (!resp.ok) {
+      throw new Error("Не удалось загрузить location.csv");
+    }
+
     const text = await resp.text();
     const rows = parseCSV(text);
 
-    const headers = rows[0].map(h => (h || "").toLowerCase());
+    if (!rows.length) {
+      throw new Error("location.csv пустой");
+    }
+
+    const headers = rows[0].map(h => (h || "").toLowerCase().trim());
+
     const idxName = headers.indexOf("locationname");
     const idxBarcode = headers.indexOf("locationbarcode");
     const idxRoute = headers.indexOf("routezone_id");
+
+    if (idxName === -1 || idxBarcode === -1 || idxRoute === -1) {
+      throw new Error("В location.csv должны быть колонки: locationname, locationbarcode, routezone_id");
+    }
 
     const sectors = {};
     const employees = [];
 
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i];
-      const name = cols[idxName];
-      const barcodeVal = cols[idxBarcode];
-      const route = cols[idxRoute];
+      const name = (cols[idxName] || "").trim();
+      const barcodeVal = (cols[idxBarcode] || "").trim();
+      const route = (cols[idxRoute] || "").trim();
 
       if (!name || !barcodeVal) continue;
 
       if (route === "2") {
         employees.push({ name, barcode: barcodeVal });
-      } else {
-        const sector = name[0];
-        if (!sectors[sector]) sectors[sector] = [];
-        sectors[sector].push({ name, barcode: barcodeVal });
+        continue;
       }
+
+      const group = detectGroup(name);
+      if (!group) continue;
+
+      if (!sectors[group]) sectors[group] = [];
+      sectors[group].push({ name, barcode: barcodeVal });
     }
 
     data = { sectors, employees };
@@ -194,6 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function addRecent(item) {
     let arr = [];
+
     try {
       arr = JSON.parse(localStorage.getItem(LS_RECENT) || "[]");
     } catch {}
@@ -244,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     sectorButtons.innerHTML = "";
 
     Object.keys(data.sectors)
-      .sort()
+      .sort((a, b) => a.localeCompare(b, "ru"))
       .forEach(sec => {
         const btn = document.createElement("button");
         btn.textContent = sec;
@@ -260,7 +289,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function showMain() {
     sectorScreen.classList.add("hidden");
     mainScreen.classList.remove("hidden");
-    sectorTitle.textContent = "Сектор " + currentSector;
+    sectorTitle.textContent = currentSector;
     renderFavorites();
     renderRecent();
     setMode("cells");
@@ -273,7 +302,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (barcodeName) barcodeName.textContent = item.name;
 
     generateQR(qrCanvas, item.barcode, 260);
-
     addRecent(item);
 
     if (fullscreenBtn) fullscreenBtn.onclick = () => openFullscreen(item);
@@ -326,9 +354,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (currentMode === "cells") {
         const sectorList = data.sectors[currentSector] || [];
-        list = sectorList.filter(x => normalize(x.name).includes(query)).slice(0, 20);
+        list = sectorList.filter(x => normalize(x.name).includes(query)).slice(0, 50);
       } else if (currentMode === "employees") {
-        list = data.employees.filter(x => normalize(x.name).includes(query)).slice(0, 20);
+        list = data.employees.filter(x => normalize(x.name).includes(query)).slice(0, 50);
       }
 
       list.forEach(item => {
@@ -342,14 +370,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   (async function init() {
-    await loadCSV();
-    const savedSector = localStorage.getItem(LS_SECTOR);
+    try {
+      await loadCSV();
+      const savedSector = localStorage.getItem(LS_SECTOR);
 
-    if (savedSector) {
-      currentSector = savedSector;
-      showMain();
-    } else {
-      showSectorSelect();
+      if (savedSector && data.sectors[savedSector]) {
+        currentSector = savedSector;
+        showMain();
+      } else {
+        showSectorSelect();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка загрузки данных: " + e.message);
     }
   })();
 });
