@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="data:," />
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 
   <style>
     * { box-sizing: border-box; }
@@ -70,7 +70,7 @@
           <button id="favoriteBtn">⭐ В избранное</button>
         </div>
       </div>
-      <canvas id="qrCanvas"></canvas>
+      <div id="qrCanvas" style="display:flex;justify-content:center;margin-top:10px;"></div>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -95,7 +95,7 @@
 
   <div id="fullscreen">
     <b id="fullscreenName" style="font-size:20px;"></b>
-    <canvas id="fullscreenQR"></canvas>
+    <div id="fullscreenQR" style="display:flex;justify-content:center;"></div>
     <button onclick="closeFullscreen()">Назад</button>
   </div>
 
