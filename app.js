@@ -141,23 +141,18 @@ document.addEventListener("DOMContentLoaded", () => {
     data = { sectors, employees };
   }
 
-  function generateQR(canvas, code, size) {
-    QRCode.toCanvas(
-      canvas,
-      code,
-      {
-        width: size,
-        margin: 2,
-        color: {
-          dark: "#000000",
-          light: "#ffffff"
-        }
-      },
-      function (err) {
-        if (err) console.error(err);
-      }
-    );
-  }
+  function generateQR(container, code, size) {
+  container.innerHTML = "";
+
+  new QRCode(container, {
+    text: code,
+    width: size,
+    height: size,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
 
   function getFav() {
     try {
