@@ -1,148 +1,102 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Складской терминал</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="data:,">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#01696f" />
+  <title>Складской терминал</title>
+  <link rel="manifest" href="manifest.json" />
 
-<style>
-* { box-sizing: border-box; }
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-body{
-  font-family: system-ui;
-  margin: 16px;
-  max-width: 900px;
-}
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui; margin: 16px; max-width: 900px; }
+    h2 { margin: 0 0 10px 0; }
+    button { padding: 8px 12px; font-size: 16px; cursor: pointer; }
+    input { padding: 10px; font-size: 16px; width: 100%; box-sizing: border-box; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 12px; }
+    .hidden { display: none; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .small { font-size: 13px; color: #666; }
+    .result { padding: 10px 8px; border-bottom: 1px solid #eee; cursor: pointer; word-break: break-word; }
+    .result:hover { background: #f3f3f3; }
+    #qrCanvas { display: block; margin: 10px auto; max-width: 300px; width: 100%; }
+    #results { max-height: 320px; overflow-y: auto; margin-top: 8px; border: 1px solid #eee; border-radius: 8px; }
+    #favoritesPanel { margin-top: 10px; border: 1px solid #eee; border-radius: 8px; padding: 8px; }
 
-h2{ margin: 0 0 10px 0; }
+    #fullscreen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: white;
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
 
-button{
-  padding: 8px 12px;
-  font-size: 16px;
-  cursor: pointer;
-}
+    #fullscreen canvas {
+      width: min(90vw, 90vh) !important;
+      height: min(90vw, 90vh) !important;
+    }
 
-input{
-  padding: 10px;
-  font-size: 16px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.card{
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 12px;
-  margin-top: 12px;
-}
-
-.hidden{ display: none; }
-
-.topbar{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.small{
-  font-size: 13px;
-  color: #666;
-}
-
-.result{
-  padding: 10px 8px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  word-break: break-word;
-}
-
-.result:hover{ background: #f3f3f3; }
-
-svg{
-  width: 100%;
-  max-width: 650px;
-}
-
-#results{
-  max-height: 320px;
-  overflow-y: auto;
-  margin-top: 8px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-}
-
-#favoritesPanel{
-  margin-top: 10px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 8px;
-}
-
-</style>
+    #fullscreen button {
+      font-size: 18px;
+    }
+  </style>
 </head>
-
 <body>
 
-<!-- Экран выбора сектора -->
-<div id="sectorScreen">
-  <h2>Выберите сектор</h2>
-  <div id="sectorButtons"></div>
-</div>
-
-<!-- Основной экран -->
-<div id="mainScreen" class="hidden">
-
-  <div class="topbar">
-    <h2 id="sectorTitle"></h2>
-    <button id="changeSectorBtn">Сменить сектор</button>
+  <div id="sectorScreen">
+    <h2>Выберите сектор</h2>
+    <div id="sectorButtons" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
-  <!-- 1) Штрихкод (всегда сверху) -->
-  <div class="card hidden" id="barcodeCard">
-    <div id="barcodeName"></div>
-    <svg id="barcode"></svg>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-      <button id="fullscreenBtn">Увеличить</button>
-      <button id="favoriteBtn">⭐ В избранное</button>
+  <div id="mainScreen" class="hidden">
+    <div class="topbar">
+      <h2 id="sectorTitle">Сектор</h2>
+      <button id="changeSectorBtn">Сменить сектор</button>
     </div>
-  </div>
 
-  <!-- 2) Поиск + режимы -->
-  <div class="card">
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+    <div id="barcodeCard" class="card hidden">
+      <div class="topbar">
+        <b id="barcodeName"></b>
+        <div style="display:flex;gap:8px;">
+          <button id="fullscreenBtn">Увеличить</button>
+          <button id="favoriteBtn">⭐ В избранное</button>
+        </div>
+      </div>
+      <canvas id="qrCanvas"></canvas>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;">
       <button id="modeCells">Ячейки</button>
       <button id="modeEmployees">Сотрудники</button>
       <button id="modeFavorites">Избранные</button>
     </div>
 
-    <input id="searchInput" placeholder="Поиск..." autocomplete="off">
+    <input id="searchInput" placeholder="Поиск..." autocomplete="off" />
     <div id="results"></div>
 
-    <!-- Панель избранных (показывается только в режиме Избранные) -->
     <div id="favoritesPanel" class="hidden">
+      <div class="small"><b>Избранные:</b></div>
       <div id="favorites"></div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div class="small"><b>Последние:</b></div>
+      <div id="recent"></div>
     </div>
   </div>
 
-  <!-- 3) Последние -->
-  <div class="card">
-    <div><b>Последние:</b></div>
-    <div id="recent"></div>
+  <div id="fullscreen">
+    <b id="fullscreenName" style="font-size:20px;"></b>
+    <canvas id="fullscreenQR"></canvas>
+    <button onclick="closeFullscreen()">Назад</button>
   </div>
 
-</div>
-
-<!-- Fullscreen штрихкод -->
-<div id="fullscreen" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; flex-direction:column; align-items:center; justify-content:center; z-index:1000; padding:16px;">
-  <svg id="fullscreenBarcode"></svg>
-  <button onclick="closeFullscreen()" style="margin-top:16px;">Назад</button>
-</div>
-
-<script src="JsBarcode.all.min.js"></script>
-<script src="app.js"></script>
-
+  <script src="app.js"></script>
 </body>
 </html>
