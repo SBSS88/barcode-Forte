@@ -1,8 +1,8 @@
 {
-  "name": "Генератор Code128",
-  "short_name": "Code128",
+  "name": "Складской терминал QR",
+  "short_name": "Warehouse QR",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111"
+  "background_color": "#ffffff",
+  "theme_color": "#01696f"
 }
