@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#01696f" />
-  <title>Складской терминал</title>
+  <title>Складской терминал QR</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:," />
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
@@ -14,10 +15,10 @@
     body { font-family: system-ui; margin: 16px; max-width: 900px; }
     h2 { margin: 0 0 10px 0; }
     button { padding: 8px 12px; font-size: 16px; cursor: pointer; }
-    input { padding: 10px; font-size: 16px; width: 100%; box-sizing: border-box; }
+    input { padding: 10px; font-size: 16px; width: 100%; box-sizing: border-box; margin-top: 8px; }
     .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 12px; }
     .hidden { display: none; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
     .small { font-size: 13px; color: #666; }
     .result { padding: 10px 8px; border-bottom: 1px solid #eee; cursor: pointer; word-break: break-word; }
     .result:hover { background: #f3f3f3; }
@@ -35,6 +36,7 @@
       align-items: center;
       justify-content: center;
       gap: 16px;
+      padding: 16px;
     }
 
     #fullscreen canvas {
@@ -50,20 +52,20 @@
 <body>
 
   <div id="sectorScreen">
-    <h2>Выберите сектор</h2>
+    <h2>Выберите группу</h2>
     <div id="sectorButtons" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
   <div id="mainScreen" class="hidden">
     <div class="topbar">
-      <h2 id="sectorTitle">Сектор</h2>
-      <button id="changeSectorBtn">Сменить сектор</button>
+      <h2 id="sectorTitle">Группа</h2>
+      <button id="changeSectorBtn">Сменить группу</button>
     </div>
 
     <div id="barcodeCard" class="card hidden">
       <div class="topbar">
         <b id="barcodeName"></b>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button id="fullscreenBtn">Увеличить</button>
           <button id="favoriteBtn">⭐ В избранное</button>
         </div>
@@ -71,7 +73,7 @@
       <canvas id="qrCanvas"></canvas>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:12px;">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
       <button id="modeCells">Ячейки</button>
       <button id="modeEmployees">Сотрудники</button>
       <button id="modeFavorites">Избранные</button>
