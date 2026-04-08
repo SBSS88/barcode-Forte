@@ -1,9 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v6";
-  const LS_RECENT = "warehouse_recent_v6";
-  const LS_FAV = "warehouse_fav_v6";
+  const LS_SECTOR = "warehouse_sector_v7";
+  const LS_RECENT = "warehouse_recent_v7";
+  const LS_FAV = "warehouse_fav_v7";
 
-  let data = { sectors: {}, employees: [] };
+  let data = { sectors: {}, employees: [], allCells: [] };
   let currentSector = null;
   let currentMode = "cells";
   let currentItem = null;
@@ -126,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const sectors = {};
     const employees = [];
+    const allCells = [];
 
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i];
@@ -143,8 +144,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const group = detectGroup(name);
       if (!group) continue;
 
+      const item = { name, barcode: barcodeVal, group };
+
       if (!sectors[group]) sectors[group] = [];
-      sectors[group].push({ name, barcode: barcodeVal });
+      sectors[group].push(item);
+      allCells.push(item);
     }
 
     Object.keys(sectors).forEach(group => {
@@ -152,8 +156,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     sortByRuName(employees);
+    sortByRuName(allCells);
 
-    data = { sectors, employees };
+    data = { sectors, employees, allCells };
   }
 
   function generateQR(container, code, size) {
@@ -286,6 +291,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getCurrentList() {
     if (currentMode === "cells") {
+      if (currentSector === "__GLOBAL_SEARCH__") {
+        return data.allCells.slice();
+      }
       return (data.sectors[currentSector] || []).slice();
     }
 
@@ -305,8 +313,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const query = normalize(searchInput ? searchInput.value : "");
     let list = getCurrentList();
 
-    if (query) {
+    if (currentSector === "__GLOBAL_SEARCH__") {
+      if (!query) {
+        renderList([]);
+        return;
+      }
       list = list.filter(x => normalize(x.name).includes(query));
+    } else {
+      if (query) {
+        list = list.filter(x => normalize(x.name).includes(query));
+      }
     }
 
     list = list
@@ -317,10 +333,27 @@ document.addEventListener("DOMContentLoaded", () => {
     renderList(list);
   }
 
+  function updateSearchPlaceholder() {
+    if (!searchInput) return;
+
+    if (currentSector === "__GLOBAL_SEARCH__") {
+      searchInput.placeholder = "Введите название ячейки для поиска по всем группам";
+      return;
+    }
+
+    if (currentMode === "employees") {
+      searchInput.placeholder = "Поиск сотрудника...";
+      return;
+    }
+
+    searchInput.placeholder = "Поиск...";
+  }
+
   function setMode(mode) {
     currentMode = mode;
 
     if (favoritesPanel) favoritesPanel.classList.add("hidden");
+    updateSearchPlaceholder();
 
     if (mode === "favorites") {
       if (searchInput) searchInput.value = "";
@@ -334,29 +367,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function openGroup(groupName) {
+    currentSector = groupName;
+    localStorage.setItem(LS_SECTOR, groupName);
+    showMain();
+  }
+
   function showSectorSelect() {
     sectorButtons.innerHTML = "";
 
-    Object.keys(data.sectors)
-      .sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" }))
-      .forEach(sec => {
-        const btn = document.createElement("button");
-        btn.textContent = sec;
-        btn.onclick = () => {
-          currentSector = sec;
-          localStorage.setItem(LS_SECTOR, sec);
-          showMain();
-        };
-        sectorButtons.appendChild(btn);
-      });
+    const groups = Object.keys(data.sectors)
+      .sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" }));
+
+    groups.forEach(sec => {
+      const btn = document.createElement("button");
+      btn.textContent = sec;
+      btn.onclick = () => openGroup(sec);
+      sectorButtons.appendChild(btn);
+    });
+
+    const searchBtn = document.createElement("button");
+    searchBtn.textContent = "Поиск по названию";
+    searchBtn.onclick = () => openGroup("__GLOBAL_SEARCH__");
+    sectorButtons.appendChild(searchBtn);
   }
 
   function showMain() {
     sectorScreen.classList.add("hidden");
     mainScreen.classList.remove("hidden");
-    sectorTitle.textContent = currentSector;
+
+    sectorTitle.textContent =
+      currentSector === "__GLOBAL_SEARCH__" ? "Поиск по названию" : currentSector;
+
     renderFavorites();
     renderRecent();
+    updateSearchPlaceholder();
     setMode("cells");
   }
 
@@ -364,7 +409,9 @@ document.addEventListener("DOMContentLoaded", () => {
     currentItem = item;
 
     if (barcodeCard) barcodeCard.classList.remove("hidden");
-    if (barcodeName) barcodeName.textContent = item.name;
+    if (barcodeName) {
+      barcodeName.textContent = item.group ? `${item.name}` : item.name;
+    }
 
     generateQR(qrCanvas, item.barcode, 260);
     addRecent(item);
@@ -418,7 +465,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const savedSector = localStorage.getItem(LS_SECTOR);
 
-      if (savedSector && data.sectors[savedSector]) {
+      if (
+        savedSector &&
+        (data.sectors[savedSector] || savedSector === "__GLOBAL_SEARCH__")
+      ) {
         currentSector = savedSector;
         showMain();
       } else {
