@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v7";
-  const LS_RECENT = "warehouse_recent_v7";
-  const LS_FAV = "warehouse_fav_v7";
+  const LS_SECTOR = "warehouse_sector_v8";
+  const LS_RECENT = "warehouse_recent_v8";
+  const LS_FAV = "warehouse_fav_v8";
 
   let data = { sectors: {}, employees: [], allCells: [] };
   let currentSector = null;
@@ -141,14 +141,17 @@ document.addEventListener("DOMContentLoaded", () => {
         continue;
       }
 
+      const commonItem = { name, barcode: barcodeVal };
+
+      allCells.push(commonItem);
+
       const group = detectGroup(name);
       if (!group) continue;
 
-      const item = { name, barcode: barcodeVal, group };
+      const groupedItem = { name, barcode: barcodeVal, group };
 
       if (!sectors[group]) sectors[group] = [];
-      sectors[group].push(item);
-      allCells.push(item);
+      sectors[group].push(groupedItem);
     }
 
     Object.keys(sectors).forEach(group => {
@@ -337,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!searchInput) return;
 
     if (currentSector === "__GLOBAL_SEARCH__") {
-      searchInput.placeholder = "Введите название ячейки для поиска по всем группам";
+      searchInput.placeholder = "Введите название ячейки для поиска по всем значениям";
       return;
     }
 
@@ -409,9 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentItem = item;
 
     if (barcodeCard) barcodeCard.classList.remove("hidden");
-    if (barcodeName) {
-      barcodeName.textContent = item.group ? `${item.name}` : item.name;
-    }
+    if (barcodeName) barcodeName.textContent = item.name;
 
     generateQR(qrCanvas, item.barcode, 260);
     addRecent(item);
