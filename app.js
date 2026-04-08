@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v3";
-  const LS_RECENT = "warehouse_recent_v3";
-  const LS_FAV = "warehouse_fav_v3";
+  const LS_SECTOR = "warehouse_sector_v4";
+  const LS_RECENT = "warehouse_recent_v4";
+  const LS_FAV = "warehouse_fav_v4";
 
   let data = { sectors: {}, employees: [] };
   let currentSector = null;
@@ -142,17 +142,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function generateQR(container, code, size) {
-  container.innerHTML = "";
+    container.innerHTML = "";
 
-  new QRCode(container, {
-    text: code,
-    width: size,
-    height: size,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H
-  });
-}
+    new QRCode(container, {
+      text: code,
+      width: size,
+      height: size,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
 
   function getFav() {
     try {
