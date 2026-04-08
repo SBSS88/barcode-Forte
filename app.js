@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v5";
-  const LS_RECENT = "warehouse_recent_v5";
-  const LS_FAV = "warehouse_fav_v5";
+  const LS_SECTOR = "warehouse_sector_v6";
+  const LS_RECENT = "warehouse_recent_v6";
+  const LS_FAV = "warehouse_fav_v6";
 
   let data = { sectors: {}, employees: [] };
   let currentSector = null;
@@ -35,7 +35,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function sortByRuName(list) {
-    return list.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }));
+    return list.sort((a, b) =>
+      a.name.localeCompare(b.name, "ru", {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
   }
 
   function parseCSV(text) {
@@ -258,18 +263,73 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderList(list) {
+    if (!results) return;
+    results.innerHTML = "";
+
+    if (!list.length) {
+      const empty = document.createElement("div");
+      empty.className = "result";
+      empty.textContent = "Ничего не найдено";
+      results.appendChild(empty);
+      return;
+    }
+
+    list.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "result";
+      div.textContent = item.name;
+      div.onclick = () => showBarcode(item);
+      results.appendChild(div);
+    });
+  }
+
+  function getCurrentList() {
+    if (currentMode === "cells") {
+      return (data.sectors[currentSector] || []).slice();
+    }
+
+    if (currentMode === "employees") {
+      return data.employees.slice();
+    }
+
+    return [];
+  }
+
+  function updateResults() {
+    if (currentMode === "favorites") {
+      if (results) results.innerHTML = "";
+      return;
+    }
+
+    const query = normalize(searchInput ? searchInput.value : "");
+    let list = getCurrentList();
+
+    if (query) {
+      list = list.filter(x => normalize(x.name).includes(query));
+    }
+
+    list = list
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
+      .slice(0, 200);
+
+    renderList(list);
+  }
+
   function setMode(mode) {
     currentMode = mode;
 
-    if (results) results.innerHTML = "";
     if (favoritesPanel) favoritesPanel.classList.add("hidden");
 
     if (mode === "favorites") {
       if (searchInput) searchInput.value = "";
+      if (results) results.innerHTML = "";
       if (favoritesPanel) favoritesPanel.classList.remove("hidden");
       renderFavorites();
       if (searchInput) searchInput.blur();
     } else {
+      updateResults();
       if (searchInput) searchInput.focus();
     }
   }
@@ -348,37 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (searchInput) {
     searchInput.oninput = () => {
-      if (currentMode === "favorites") return;
-
-      const query = normalize(searchInput.value);
-      if (results) results.innerHTML = "";
-
-      if (query.length < 1) return;
-
-      let list = [];
-
-      if (currentMode === "cells") {
-        const sectorList = data.sectors[currentSector] || [];
-        list = sectorList
-          .filter(x => normalize(x.name).includes(query))
-          .slice()
-          .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
-          .slice(0, 50);
-      } else if (currentMode === "employees") {
-        list = data.employees
-          .filter(x => normalize(x.name).includes(query))
-          .slice()
-          .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
-          .slice(0, 50);
-      }
-
-      list.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "result";
-        div.textContent = item.name;
-        div.onclick = () => showBarcode(item);
-        results.appendChild(div);
-      });
+      updateResults();
     };
   }
 
