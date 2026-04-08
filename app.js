@@ -138,8 +138,11 @@ document.addEventListener("DOMContentLoaded", () => {
       sectors[group].push({ name, barcode: barcodeVal });
     }
 
-    data = { sectors, employees };
-  }
+    Object.keys(sectors).forEach(group => {
+  sectors[group].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+});
+
+employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
   function generateQR(container, code, size) {
     container.innerHTML = "";
@@ -348,11 +351,17 @@ document.addEventListener("DOMContentLoaded", () => {
       let list = [];
 
       if (currentMode === "cells") {
-        const sectorList = data.sectors[currentSector] || [];
-        list = sectorList.filter(x => normalize(x.name).includes(query)).slice(0, 50);
-      } else if (currentMode === "employees") {
-        list = data.employees.filter(x => normalize(x.name).includes(query)).slice(0, 50);
-      }
+  const sectorList = data.sectors[currentSector] || [];
+  list = sectorList
+    .filter(x => normalize(x.name).includes(query))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+    .slice(0, 50);
+} else if (currentMode === "employees") {
+  list = data.employees
+    .filter(x => normalize(x.name).includes(query))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+    .slice(0, 50);
+}
 
       list.forEach(item => {
         const div = document.createElement("div");
