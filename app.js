@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const LS_SECTOR = "warehouse_sector_v4";
-  const LS_RECENT = "warehouse_recent_v4";
-  const LS_FAV = "warehouse_fav_v4";
+  const LS_SECTOR = "warehouse_sector_v5";
+  const LS_RECENT = "warehouse_recent_v5";
+  const LS_FAV = "warehouse_fav_v5";
 
   let data = { sectors: {}, employees: [] };
   let currentSector = null;
@@ -32,6 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function normalize(str) {
     return (str || "").toUpperCase().trim();
+  }
+
+  function sortByRuName(list) {
+    return list.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }));
   }
 
   function parseCSV(text) {
@@ -139,10 +143,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     Object.keys(sectors).forEach(group => {
-  sectors[group].sort((a, b) => a.name.localeCompare(b.name, "ru"));
-});
+      sortByRuName(sectors[group]);
+    });
 
-employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    sortByRuName(employees);
+
+    data = { sectors, employees };
+  }
 
   function generateQR(container, code, size) {
     container.innerHTML = "";
@@ -208,7 +215,7 @@ employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
     arr
       .slice()
-      .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+      .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
       .forEach(item => {
         const div = document.createElement("div");
         div.className = "result";
@@ -271,7 +278,7 @@ employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
     sectorButtons.innerHTML = "";
 
     Object.keys(data.sectors)
-      .sort((a, b) => a.localeCompare(b, "ru"))
+      .sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" }))
       .forEach(sec => {
         const btn = document.createElement("button");
         btn.textContent = sec;
@@ -351,17 +358,19 @@ employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
       let list = [];
 
       if (currentMode === "cells") {
-  const sectorList = data.sectors[currentSector] || [];
-  list = sectorList
-    .filter(x => normalize(x.name).includes(query))
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"))
-    .slice(0, 50);
-} else if (currentMode === "employees") {
-  list = data.employees
-    .filter(x => normalize(x.name).includes(query))
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"))
-    .slice(0, 50);
-}
+        const sectorList = data.sectors[currentSector] || [];
+        list = sectorList
+          .filter(x => normalize(x.name).includes(query))
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
+          .slice(0, 50);
+      } else if (currentMode === "employees") {
+        list = data.employees
+          .filter(x => normalize(x.name).includes(query))
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true, sensitivity: "base" }))
+          .slice(0, 50);
+      }
 
       list.forEach(item => {
         const div = document.createElement("div");
@@ -376,6 +385,7 @@ employees.sort((a, b) => a.name.localeCompare(b.name, "ru"));
   (async function init() {
     try {
       await loadCSV();
+
       const savedSector = localStorage.getItem(LS_SECTOR);
 
       if (savedSector && data.sectors[savedSector]) {
